@@ -80,7 +80,7 @@ typedef struct
  * @retval #OS_ERR_NO_FREE_IDS if there are no more free condition variable Ids
  * @retval #OS_ERR_NAME_TAKEN if there is already a condition variable with the same name
  */
-int32 OS_CondVarCreate(osal_id_t *var_id, const char *var_name, uint32 options);
+int32 OS_CondVarCreate(osal_id_t *var_id, const char *var_name, osal_id_t mutex_id, uint32 options);
 
 /*-------------------------------------------------------------------------------------*/
 /**

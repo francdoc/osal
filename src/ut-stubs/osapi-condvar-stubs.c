@@ -46,7 +46,7 @@ int32 OS_CondVarBroadcast(osal_id_t var_id)
  * Generated stub function for OS_CondVarCreate()
  * ----------------------------------------------------
  */
-int32 OS_CondVarCreate(osal_id_t *var_id, const char *var_name, uint32 options)
+int32 OS_CondVarCreate(osal_id_t *var_id, const char *var_name, osal_id_t mutex_id, uint32 options)
 {
     UT_GenStub_SetupReturnBuffer(OS_CondVarCreate, int32);
 

@@ -65,7 +65,7 @@ int32 OS_Posix_CondVarAPI_Impl_Init(void)
  *           See prototype for argument/return detail
  *
  *-----------------------------------------------------------------*/
-int32 OS_CondVarCreate_Impl(const OS_object_token_t *token, uint32 options)
+int32 OS_CondVarCreate_Impl(const OS_object_token_t *token, osal_id_t mutex_id, uint32 options)
 {
     int32                              final_status;
     int                                status;

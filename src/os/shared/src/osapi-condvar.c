@@ -77,7 +77,7 @@ int32 OS_CondVarAPI_Init(void)
  *           See description in API and header file for detail
  *
  *-----------------------------------------------------------------*/
-int32 OS_CondVarCreate(osal_id_t *var_id, const char *var_name, uint32 options)
+int32 OS_CondVarCreate(osal_id_t *var_id, const char *var_name, osal_id_t mutex_id, uint32 options)
 {
     int32                         return_code;
     OS_object_token_t             token;
@@ -97,7 +97,7 @@ int32 OS_CondVarCreate(osal_id_t *var_id, const char *var_name, uint32 options)
         OS_OBJECT_INIT(token, condvar, obj_name, var_name);
 
         /* Now call the OS-specific implementation.  This reads info from the table. */
-        return_code = OS_CondVarCreate_Impl(&token, options);
+        return_code = OS_CondVarCreate_Impl(&token, mutex_id, options);
 
         /* Check result, finalize record, and unlock global table. */
         return_code = OS_ObjectIdFinalizeNew(return_code, &token, var_id);
