@@ -32,6 +32,7 @@
 typedef struct
 {
     char obj_name[OS_MAX_API_NAME];
+    osal_id_t bound_mutex;
 } OS_condvar_internal_record_t;
 
 /*

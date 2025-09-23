@@ -86,7 +86,6 @@ int32 OS_CondVarCreate(osal_id_t *var_id, const char *var_name, osal_id_t mutex_
     /* Check parameters */
     OS_CHECK_POINTER(var_id);
     OS_CHECK_APINAME(var_name);
-
     /* Note - the common ObjectIdAllocate routine will lock the object type and leave it locked. */
     return_code = OS_ObjectIdAllocateNew(OS_OBJECT_TYPE_OS_CONDVAR, var_name, &token);
     if (return_code == OS_SUCCESS)
@@ -96,7 +95,21 @@ int32 OS_CondVarCreate(osal_id_t *var_id, const char *var_name, osal_id_t mutex_
         /* Reset the table entry and save the name */
         OS_OBJECT_INIT(token, condvar, obj_name, var_name);
 
-        /* Now call the OS-specific implementation.  This reads info from the table. */
+        OS_object_token_t mtok;
+        int32             err;
+
+        err = OS_ObjectIdGetById(OS_LOCK_MODE_NONE,
+                                    OS_OBJECT_TYPE_OS_MUTEX,
+                                    mutex_id,
+                                    &mtok);
+        if (err != OS_SUCCESS)
+        {
+            return_code = OS_ObjectIdFinalizeNew(OS_ERR_INVALID_ID, &token, NULL);
+            return return_code;
+        }
+    
+        condvar->bound_mutex = mutex_id;
+
         return_code = OS_CondVarCreate_Impl(&token, mutex_id, options);
 
         /* Check result, finalize record, and unlock global table. */
