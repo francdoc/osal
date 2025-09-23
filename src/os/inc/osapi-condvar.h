@@ -71,6 +71,7 @@ typedef struct
  *
  * @param[out]  var_id will be set to the non-zero ID of the newly-created resource @nonnull
  * @param[in]   var_name the name of the new resource to create @nonnull
+ * @param[in]   mutex_id  the ID of an existing mutex to associate/bind to this condvar @nonnull
  * @param[in]   options reserved for future use.  Should be passed as 0.
  *
  * @return Execution status, see @ref OSReturnCodes
@@ -79,6 +80,7 @@ typedef struct
  * @retval #OS_ERR_NAME_TOO_LONG name length including null terminator greater than #OS_MAX_API_NAME
  * @retval #OS_ERR_NO_FREE_IDS if there are no more free condition variable Ids
  * @retval #OS_ERR_NAME_TAKEN if there is already a condition variable with the same name
+ * @retval #OS_ERR_INVALID_ID if mutex_id does not refer to a valid mutex resource
  */
 int32 OS_CondVarCreate(osal_id_t *var_id, const char *var_name, osal_id_t mutex_id, uint32 options);
 
