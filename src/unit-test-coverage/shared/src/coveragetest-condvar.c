@@ -48,17 +48,21 @@ void Test_OS_CondVarCreate(void)
      */
     osal_id_t objid = OS_OBJECT_ID_UNDEFINED;
 
-    OSAPI_TEST_FUNCTION_RC(OS_CondVarCreate(&objid, "UT", 0), OS_SUCCESS);
+    OSAPI_TEST_FUNCTION_RC(OS_CondVarCreate(&objid, "UT", UT_OBJID_1, 0), OS_SUCCESS);
     OSAPI_TEST_OBJID(objid, !=, OS_OBJECT_ID_UNDEFINED);
 
-    OSAPI_TEST_FUNCTION_RC(OS_CondVarCreate(NULL, "UT", 0), OS_INVALID_POINTER);
-    OSAPI_TEST_FUNCTION_RC(OS_CondVarCreate(&objid, NULL, 0), OS_INVALID_POINTER);
+    OSAPI_TEST_FUNCTION_RC(OS_CondVarCreate(NULL, "UT", UT_OBJID_1, 0), OS_INVALID_POINTER);
+    OSAPI_TEST_FUNCTION_RC(OS_CondVarCreate(&objid, NULL, UT_OBJID_1, 0), OS_INVALID_POINTER);
+
+    UT_SetDefaultReturnValue(UT_KEY(OS_ObjectIdGetById), OS_ERR_INVALID_ID);
+    OSAPI_TEST_FUNCTION_RC(OS_CondVarCreate(&objid, "UT", UT_OBJID_1, 0), OS_ERR_INVALID_ID);
+    UT_ClearDefaultReturnValue(UT_KEY(OS_ObjectIdGetById));
 
     UT_SetDefaultReturnValue(UT_KEY(OS_ObjectIdAllocateNew), OS_ERROR);
-    OSAPI_TEST_FUNCTION_RC(OS_CondVarCreate(&objid, "UT", 0), OS_ERROR);
+    OSAPI_TEST_FUNCTION_RC(OS_CondVarCreate(&objid, "UT", UT_OBJID_1, 0), OS_ERROR);
 
     UT_SetDefaultReturnValue(UT_KEY(OCS_memchr), OS_ERROR);
-    OSAPI_TEST_FUNCTION_RC(OS_CondVarCreate(&objid, "UT", 0), OS_ERR_NAME_TOO_LONG);
+    OSAPI_TEST_FUNCTION_RC(OS_CondVarCreate(&objid, "UT", UT_OBJID_1, 0), OS_ERR_NAME_TOO_LONG);
 }
 
 void Test_OS_CondVarDelete(void)

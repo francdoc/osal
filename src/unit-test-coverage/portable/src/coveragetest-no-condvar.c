@@ -29,10 +29,10 @@
 void Test_OS_CondVarCreate_Impl(void)
 {
     /* Test Case For:
-     * int32 OS_CondVarCreate_Impl(const OS_object_token_t *token, uint32 options)
+     * int32 OS_CondVarCreate_Impl(const OS_object_token_t *token, osal_id_t mutex_id, uint32 options)
      */
 
-    OSAPI_TEST_FUNCTION_RC(OS_CondVarCreate_Impl, (UT_INDEX_0, 0), OS_ERR_NOT_IMPLEMENTED);
+    OSAPI_TEST_FUNCTION_RC(OS_CondVarCreate_Impl, (UT_INDEX_0, UT_OBJID_1, 0), OS_ERR_NOT_IMPLEMENTED);
 }
 
 void Test_OS_CondVarLock_Impl(void)

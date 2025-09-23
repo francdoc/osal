@@ -60,11 +60,12 @@ int32 OS_CondVarBroadcast_Impl(const OS_object_token_t *token)
  * Generated stub function for OS_CondVarCreate_Impl()
  * ----------------------------------------------------
  */
-int32 OS_CondVarCreate_Impl(const OS_object_token_t *token, uint32 options)
+int32 OS_CondVarCreate_Impl(const OS_object_token_t *token, osal_id_t mutex_id, uint32 options)
 {
     UT_GenStub_SetupReturnBuffer(OS_CondVarCreate_Impl, int32);
 
     UT_GenStub_AddParam(OS_CondVarCreate_Impl, const OS_object_token_t *, token);
+    UT_GenStub_AddParam(OS_CondVarCreate_Impl, osal_id_t, mutex_id);
     UT_GenStub_AddParam(OS_CondVarCreate_Impl, uint32, options);
 
     UT_GenStub_Execute(OS_CondVarCreate_Impl, Basic, NULL);

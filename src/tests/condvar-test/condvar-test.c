@@ -54,6 +54,7 @@ condvar_task_stack_t task_stacks[NUM_TASKS];
 condvar_task_state_t task_states[NUM_TASKS];
 
 osal_id_t condvar_id;
+osal_id_t condvar_mutex_id;
 
 uint32 curr_condition;
 uint32 total_work;
@@ -120,9 +121,10 @@ void CondVarTest_Setup(void)
     total_work     = 0;
 
     /*
-    ** Create the condvar
+    ** Create the mutex and condvar
     */
-    UtAssert_INT32_EQ(OS_CondVarCreate(&condvar_id, "CondVar", 0), OS_SUCCESS);
+    UtAssert_INT32_EQ(OS_MutSemCreate(&condvar_mutex_id, "CondVarMtx", 0), OS_SUCCESS);
+    UtAssert_INT32_EQ(OS_CondVarCreate(&condvar_id, "CondVar", condvar_mutex_id, 0), OS_SUCCESS);
     UtPrintf("CondVar create Id=%ld", OS_ObjectIdToInteger(condvar_id));
 
     /*
@@ -231,6 +233,7 @@ void CondVarTest_Teardown(void)
     UtAssert_INT32_EQ(OS_CondVarUnlock(condvar_id), OS_SUCCESS);
 
     UtAssert_INT32_EQ(OS_CondVarDelete(condvar_id), OS_SUCCESS);
+    UtAssert_INT32_EQ(OS_MutSemDelete(condvar_mutex_id), OS_SUCCESS);
 }
 
 OS_time_t testtm_ref1;
@@ -279,7 +282,8 @@ void CondVarTimedWait_Setup(void)
 {
     total_work = 0;
 
-    UtAssert_INT32_EQ(OS_CondVarCreate(&condvar_id, "CondVar", 0), OS_SUCCESS);
+    UtAssert_INT32_EQ(OS_MutSemCreate(&condvar_mutex_id, "CondVarMtx", 0), OS_SUCCESS);
+    UtAssert_INT32_EQ(OS_CondVarCreate(&condvar_id, "CondVar", condvar_mutex_id, 0), OS_SUCCESS);
 
     UtAssert_INT32_EQ(OS_TaskCreate(&task_states[0].task_id, "timedwait", condvar_timedtask_entry,
                                     OSAL_STACKPTR_C(&task_stacks[0]), sizeof(task_stacks[0]), OSAL_PRIORITY_C(10), 0),
@@ -326,6 +330,7 @@ void CondVarTimedWait_Teardown(void)
     UtAssert_INT32_EQ(OS_CondVarUnlock(condvar_id), OS_SUCCESS);
 
     UtAssert_INT32_EQ(OS_CondVarDelete(condvar_id), OS_SUCCESS);
+    UtAssert_INT32_EQ(OS_MutSemDelete(condvar_mutex_id), OS_SUCCESS);
 }
 
 void CondVarTest_Ops(void)
@@ -334,20 +339,23 @@ void CondVarTest_Ops(void)
     char              cv_name[OS_MAX_API_NAME];
     osal_id_t         cv_id[OS_MAX_CONDVARS];
     osal_id_t         cv_extra;
+    osal_id_t         test_mutex;
     OS_condvar_prop_t cv_prop;
 
-    UtAssert_INT32_EQ(OS_CondVarCreate(NULL, "cvex", 0), OS_INVALID_POINTER);
-    UtAssert_INT32_EQ(OS_CondVarCreate(&cv_extra, NULL, 0), OS_INVALID_POINTER);
+    UtAssert_INT32_EQ(OS_MutSemCreate(&test_mutex, "cvMut", 0), OS_SUCCESS);
+
+    UtAssert_INT32_EQ(OS_CondVarCreate(NULL, "cvex", test_mutex, 0), OS_INVALID_POINTER);
+    UtAssert_INT32_EQ(OS_CondVarCreate(&cv_extra, NULL, test_mutex, 0), OS_INVALID_POINTER);
 
     for (i = 0; i < OS_MAX_CONDVARS; ++i)
     {
         snprintf(cv_name, sizeof(cv_name), "cv%03u", (unsigned int)i);
-        UtAssert_INT32_EQ(OS_CondVarCreate(&cv_id[i], cv_name, 0), OS_SUCCESS);
+        UtAssert_INT32_EQ(OS_CondVarCreate(&cv_id[i], cv_name, test_mutex, 0), OS_SUCCESS);
     }
 
-    UtAssert_INT32_EQ(OS_CondVarCreate(&cv_extra, "cvex", 0), OS_ERR_NO_FREE_IDS);
+    UtAssert_INT32_EQ(OS_CondVarCreate(&cv_extra, "cvex", test_mutex, 0), OS_ERR_NO_FREE_IDS);
     UtAssert_INT32_EQ(OS_CondVarDelete(cv_id[OS_MAX_CONDVARS - 1]), OS_SUCCESS);
-    UtAssert_INT32_EQ(OS_CondVarCreate(&cv_extra, "cv000", 0), OS_ERR_NAME_TAKEN);
+    UtAssert_INT32_EQ(OS_CondVarCreate(&cv_extra, "cv000", test_mutex, 0), OS_ERR_NAME_TAKEN);
 
     UtAssert_INT32_EQ(OS_CondVarGetIdByName(&cv_extra, "cv000"), OS_SUCCESS);
     UtAssert_True(OS_ObjectIdEqual(cv_extra, cv_id[0]), "objid (%lu) == cv_id[0] (%lu)", OS_ObjectIdToInteger(cv_extra),
@@ -364,18 +372,29 @@ void CondVarTest_Ops(void)
         snprintf(cv_name, sizeof(cv_name), "cv%03u", (unsigned int)i);
         UtAssert_INT32_EQ(OS_CondVarDelete(cv_id[i]), OS_SUCCESS);
     }
+
+    UtAssert_INT32_EQ(OS_MutSemDelete(test_mutex), OS_SUCCESS);
 }
 
 bool CondVarTest_CheckImpl(void)
 {
     int32_t   status;
     osal_id_t cvid;
+    osal_id_t test_mutex;
 
-    status = OS_CondVarCreate(&cvid, "ut", 0);
+    status = OS_MutSemCreate(&test_mutex, "cvChk", 0);
+    if (status != OS_SUCCESS)
+    {
+        return false;
+    }
+
+    status = OS_CondVarCreate(&cvid, "ut", test_mutex, 0);
     if (status == OS_SUCCESS)
     {
         OS_CondVarDelete(cvid);
     }
+
+    OS_MutSemDelete(test_mutex);
 
     return (status != OS_ERR_NOT_IMPLEMENTED);
 }

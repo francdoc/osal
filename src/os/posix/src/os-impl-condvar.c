@@ -31,18 +31,10 @@
 #include "os-shared-condvar.h"
 #include "os-shared-idmap.h"
 #include "os-impl-condvar.h"
+#include "os-impl-mutex.h"
 
 /* Tables where the OS object information is stored */
 OS_impl_condvar_internal_record_t OS_impl_condvar_table[OS_MAX_CONDVARS];
-
-/*---------------------------------------------------------------------------------------
- * Helper function for releasing the mutex in case the thread
- * executing pthread_cond_wait() is canceled.
- ----------------------------------------------------------------------------------------*/
-static void OS_Posix_CondVarReleaseMutex(void *mut)
-{
-    pthread_mutex_unlock(mut);
-}
 
 /****************************************************************************************
                                   CONDVAR API
@@ -67,40 +59,23 @@ int32 OS_Posix_CondVarAPI_Impl_Init(void)
  *-----------------------------------------------------------------*/
 int32 OS_CondVarCreate_Impl(const OS_object_token_t *token, osal_id_t mutex_id, uint32 options)
 {
-    int32                              final_status;
     int                                status;
     OS_impl_condvar_internal_record_t *impl;
 
-    final_status = OS_SUCCESS;
-    impl         = OS_OBJECT_TABLE_GET(OS_impl_condvar_table, *token);
+    (void)mutex_id;
+    (void)options;
 
-    /*
-    ** create the underlying mutex
-    */
-    status = pthread_mutex_init(&impl->mut, NULL);
+    impl = OS_OBJECT_TABLE_GET(OS_impl_condvar_table, *token);
+
+    status = pthread_cond_init(&impl->cv, NULL);
     if (status != 0)
     {
-        OS_DEBUG("Error: CondVar mutex could not be created. ID = %lu: %s\n",
+        OS_DEBUG("Error: CondVar could not be created. ID = %lu: %s\n",
                  OS_ObjectIdToInteger(OS_ObjectIdFromToken(token)), strerror(status));
-        final_status = OS_ERROR;
-    }
-    else
-    {
-        /*
-        ** create the condvar
-        */
-        status = pthread_cond_init(&impl->cv, NULL);
-        if (status != 0)
-        {
-            pthread_mutex_destroy(&impl->mut);
-
-            OS_DEBUG("Error: CondVar could not be created. ID = %lu: %s\n",
-                     OS_ObjectIdToInteger(OS_ObjectIdFromToken(token)), strerror(status));
-            final_status = OS_ERROR;
-        }
+        return OS_ERROR;
     }
 
-    return final_status;
+    return OS_SUCCESS;
 }
 
 /*----------------------------------------------------------------
@@ -111,26 +86,18 @@ int32 OS_CondVarCreate_Impl(const OS_object_token_t *token, osal_id_t mutex_id, 
  *-----------------------------------------------------------------*/
 int32 OS_CondVarDelete_Impl(const OS_object_token_t *token)
 {
-    int32                              final_status;
     int                                status;
     OS_impl_condvar_internal_record_t *impl;
 
-    final_status = OS_SUCCESS;
-    impl         = OS_OBJECT_TABLE_GET(OS_impl_condvar_table, *token);
+    impl = OS_OBJECT_TABLE_GET(OS_impl_condvar_table, *token);
 
     status = pthread_cond_destroy(&impl->cv);
     if (status != 0)
     {
-        final_status = OS_ERROR;
+        return OS_ERROR;
     }
 
-    status = pthread_mutex_destroy(&impl->mut);
-    if (status != 0)
-    {
-        final_status = OS_ERROR;
-    }
-
-    return final_status;
+    return OS_SUCCESS;
 }
 
 /*----------------------------------------------------------------
@@ -142,11 +109,20 @@ int32 OS_CondVarDelete_Impl(const OS_object_token_t *token)
 int32 OS_CondVarUnlock_Impl(const OS_object_token_t *token)
 {
     int                                status;
-    OS_impl_condvar_internal_record_t *impl;
+    OS_condvar_internal_record_t *     condvar;
+    OS_impl_mutex_internal_record_t *  mutex_impl;
+    OS_object_token_t                  mutex_token;
 
-    impl = OS_OBJECT_TABLE_GET(OS_impl_condvar_table, *token);
+    condvar = OS_OBJECT_TABLE_GET(OS_condvar_table, *token);
+    if (OS_ObjectIdGetById(OS_LOCK_MODE_NONE, OS_OBJECT_TYPE_OS_MUTEX, condvar->bound_mutex, &mutex_token) !=
+        OS_SUCCESS)
+    {
+        return OS_ERR_INVALID_ID;
+    }
 
-    status = pthread_mutex_unlock(&impl->mut);
+    mutex_impl = OS_OBJECT_TABLE_GET(OS_impl_mutex_table, mutex_token);
+
+    status = pthread_mutex_unlock(&mutex_impl->id);
     if (status != 0)
     {
         return OS_ERROR;
@@ -164,11 +140,20 @@ int32 OS_CondVarUnlock_Impl(const OS_object_token_t *token)
 int32 OS_CondVarLock_Impl(const OS_object_token_t *token)
 {
     int                                status;
-    OS_impl_condvar_internal_record_t *impl;
+    OS_condvar_internal_record_t *     condvar;
+    OS_impl_mutex_internal_record_t *  mutex_impl;
+    OS_object_token_t                  mutex_token;
 
-    impl = OS_OBJECT_TABLE_GET(OS_impl_condvar_table, *token);
+    condvar = OS_OBJECT_TABLE_GET(OS_condvar_table, *token);
+    if (OS_ObjectIdGetById(OS_LOCK_MODE_NONE, OS_OBJECT_TYPE_OS_MUTEX, condvar->bound_mutex, &mutex_token) !=
+        OS_SUCCESS)
+    {
+        return OS_ERR_INVALID_ID;
+    }
 
-    status = pthread_mutex_lock(&impl->mut);
+    mutex_impl = OS_OBJECT_TABLE_GET(OS_impl_mutex_table, mutex_token);
+
+    status = pthread_mutex_lock(&mutex_impl->id);
     if (status != 0)
     {
         return OS_ERROR;
@@ -230,20 +215,22 @@ int32 OS_CondVarBroadcast_Impl(const OS_object_token_t *token)
 int32 OS_CondVarWait_Impl(const OS_object_token_t *token)
 {
     int                                status;
+    OS_condvar_internal_record_t *     condvar;
     OS_impl_condvar_internal_record_t *impl;
+    OS_impl_mutex_internal_record_t *  mutex_impl;
+    OS_object_token_t                  mutex_token;
 
-    impl = OS_OBJECT_TABLE_GET(OS_impl_condvar_table, *token);
+    condvar = OS_OBJECT_TABLE_GET(OS_condvar_table, *token);
+    if (OS_ObjectIdGetById(OS_LOCK_MODE_NONE, OS_OBJECT_TYPE_OS_MUTEX, condvar->bound_mutex, &mutex_token) !=
+        OS_SUCCESS)
+    {
+        return OS_ERR_INVALID_ID;
+    }
 
-    /*
-     * note that because pthread_cond_wait is a cancellation point, this needs to
-     * employ the same protection that is in the binsem module.  In the event that
-     * the thread is canceled inside pthread_cond_wait, the mutex will be re-acquired
-     * before the cancellation occurs, leaving the mutex in a locked state.
-     */
-    pthread_cleanup_push(OS_Posix_CondVarReleaseMutex, &impl->mut);
-    status = pthread_cond_wait(&impl->cv, &impl->mut);
-    pthread_cleanup_pop(false);
+    impl       = OS_OBJECT_TABLE_GET(OS_impl_condvar_table, *token);
+    mutex_impl = OS_OBJECT_TABLE_GET(OS_impl_mutex_table, mutex_token);
 
+    status = pthread_cond_wait(&impl->cv, &mutex_impl->id);
     if (status != 0)
     {
         return OS_ERROR;
@@ -262,16 +249,25 @@ int32 OS_CondVarTimedWait_Impl(const OS_object_token_t *token, const OS_time_t *
 {
     struct timespec                    limit;
     int                                status;
+    OS_condvar_internal_record_t *     condvar;
     OS_impl_condvar_internal_record_t *impl;
+    OS_impl_mutex_internal_record_t *  mutex_impl;
+    OS_object_token_t                  mutex_token;
 
-    impl = OS_OBJECT_TABLE_GET(OS_impl_condvar_table, *token);
+    condvar = OS_OBJECT_TABLE_GET(OS_condvar_table, *token);
+    if (OS_ObjectIdGetById(OS_LOCK_MODE_NONE, OS_OBJECT_TYPE_OS_MUTEX, condvar->bound_mutex, &mutex_token) !=
+        OS_SUCCESS)
+    {
+        return OS_ERR_INVALID_ID;
+    }
+
+    impl       = OS_OBJECT_TABLE_GET(OS_impl_condvar_table, *token);
+    mutex_impl = OS_OBJECT_TABLE_GET(OS_impl_mutex_table, mutex_token);
 
     limit.tv_sec  = OS_TimeGetTotalSeconds(*abs_wakeup_time);
     limit.tv_nsec = OS_TimeGetNanosecondsPart(*abs_wakeup_time);
 
-    pthread_cleanup_push(OS_Posix_CondVarReleaseMutex, &impl->mut);
-    status = pthread_cond_timedwait(&impl->cv, &impl->mut, &limit);
-    pthread_cleanup_pop(false);
+    status = pthread_cond_timedwait(&impl->cv, &mutex_impl->id, &limit);
 
     if (status == ETIMEDOUT)
     {

@@ -32,7 +32,6 @@
 /* CondVares */
 typedef struct
 {
-    pthread_mutex_t mut;
     pthread_cond_t  cv;
 } OS_impl_condvar_internal_record_t;
 

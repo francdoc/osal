@@ -33,6 +33,9 @@
 
 int32 OS_CondVarCreate_Impl(const OS_object_token_t *token, osal_id_t mutex_id, uint32 options)
 {
+    (void)token;
+    (void)mutex_id;
+    (void)options;
     return OS_ERR_NOT_IMPLEMENTED;
 }
 

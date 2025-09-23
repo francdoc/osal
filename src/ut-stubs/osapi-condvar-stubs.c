@@ -52,6 +52,7 @@ int32 OS_CondVarCreate(osal_id_t *var_id, const char *var_name, osal_id_t mutex_
 
     UT_GenStub_AddParam(OS_CondVarCreate, osal_id_t *, var_id);
     UT_GenStub_AddParam(OS_CondVarCreate, const char *, var_name);
+    UT_GenStub_AddParam(OS_CondVarCreate, osal_id_t, mutex_id);
     UT_GenStub_AddParam(OS_CondVarCreate, uint32, options);
 
     UT_GenStub_Execute(OS_CondVarCreate, Basic, NULL);
